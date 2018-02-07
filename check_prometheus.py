@@ -74,7 +74,7 @@ def print_output():
             print(metric)
 
 def check(args):
-    check_name = 'maas_k8s_prometheus_%s' % check
+    check_name = 'maas_k8s_prometheus_%s' % args.check
     try:
         r = requests.get('%s/api/v1/query' % args.prometheus_endpoint,
                          params={'query': args.query},
@@ -95,13 +95,13 @@ def check(args):
                 res=res['result']
                 if len(res)>=1:
                     res=res[0]
-                    if 'values' in res:
+                    if 'value' in res:
                         res = res['value']
                         if len(res)>=2:
                             value = string.strip(res[1], '"')
 
 
-        metric(check, 'double', value)
+        metric(args.check, 'double', value)
 
     except (requests.HTTPError, requests.Timeout, requests.ConnectionError):
         metric_bool('client_success', False, m_name=check_name)
