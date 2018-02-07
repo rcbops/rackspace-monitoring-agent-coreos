@@ -93,7 +93,7 @@ def check(args):
             res = res['data']
             if 'result' in res:
                 res=res['result']
-                if len(res)>1:
+                if len(res)>=1:
                     res=res[0]
                     if 'values' in res:
                         res = res['value']
