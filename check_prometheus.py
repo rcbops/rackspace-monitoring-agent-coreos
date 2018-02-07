@@ -4,6 +4,7 @@ import argparse
 import contextlib
 import logging
 import requests
+import string
 import sys
 import traceback
 
@@ -87,11 +88,20 @@ def check(args):
         if res['status'] != 'success':
             raise Exception("Prometheus returned status %s" % str(
                 res['status']))
+        value = 0
+        if 'data' in res:
+            res = res['data']
+            if 'result' in res:
+                res=res['result']
+                if len(res)>1:
+                    res=res[0]
+                    if 'values' in res:
+                        res = res['value']
+                        if len(res)>=2:
+                            value = string.strip(res[1], '"')
 
-        metric(check,
-               'double',
-               '%.3f' % (
-                   max(0, res['result']['value'][1]),''))
+
+        metric(check, 'double', value)
 
     except (requests.HTTPError, requests.Timeout, requests.ConnectionError):
         metric_bool('client_success', False, m_name=check_name)
@@ -111,7 +121,7 @@ def main(args):
 if __name__ == "__main__":
     parser = argparse.ArgumentParser(
         description='Retrieve values for a check from the Prometheus API')
-    parser.add_argument('prometheus_endpoint', 
+    parser.add_argument('prometheus_endpoint',
                         help="Prometheus endpoint url")
     parser.add_argument('--query',
                         default=None,
