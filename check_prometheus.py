@@ -39,8 +39,7 @@ def status_err(message=None, force_print=False, exception=None, m_name=None):
     sys.exit(1)
 
 
-def metric(name, metric_type, value, unit=None, m_name=None):
-
+def metric(name, metric_type, value, unit=None, m_name=None, extra_msg=''):
     if len(METRICS) > 49:
         status_err('Maximum of 50 metrics per check', m_name='maas')
 
@@ -51,6 +50,8 @@ def metric(name, metric_type, value, unit=None, m_name=None):
     metric_line = metric_line.replace('\n', '\\n')
     METRICS.append(metric_line)
 
+    if extra_msg:
+        METRICS.append('metric msg string %s' % extra_msg)
 
 def metric_bool(name, success, m_name=None):
     value = success and 1 or 0
@@ -90,20 +91,33 @@ def check(args):
         if res['status'] != 'success':
             raise Exception("Prometheus returned status %s" % str(
                 res['status']))
+
         value = 0
+        targets = []
         if 'data' in res:
             res = res['data']
             if 'result' in res:
-                res=res['result']
-                if len(res)>=1:
-                    res=res[0]
-                    if 'value' in res:
-                        res = res['value']
-                        if len(res)>=2:
-                            value = string.strip(res[1], '"')
+                res = res['result']
 
+                for item in res:
+                    # NOTE the actual value isn't what we're after -- all
+                    # queries are simply counting the results.
+                    value += 1
 
-        metric(args.check, 'double', value)
+                    met = item['metric']
+
+                    if 'nodename' in met:
+                        target = met['nodename']
+                    elif 'node' in met:
+                        target = met['node']
+                    elif 'container' in met:
+                        target = '%s:%s (%s)' % (met['namespace'], met['pod'], met['container'])
+                    else:
+                        target = met['instance']
+
+                    targets.append(target)
+
+        metric(args.check, 'double', value, extra_msg=', '.join(targets))
 
     except (requests.HTTPError, requests.Timeout, requests.ConnectionError):
         metric_bool('client_success', False, m_name=check_name)
